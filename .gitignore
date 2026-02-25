@@ -1,0 +1,18 @@
+# CDK
+cdk/node_modules/
+cdk/cdk.out/
+cdk/cdk.context.json
+cdk/*.js
+cdk/*.d.ts
+cdk/bin/*.js
+cdk/bin/*.d.ts
+cdk/lib/*.js
+cdk/lib/*.d.ts
+cdk/test/*.js
+cdk/test/*.d.ts
+
+# Claude Code local settings
+.claude/settings.local.json
+
+# OS
+.DS_Store
