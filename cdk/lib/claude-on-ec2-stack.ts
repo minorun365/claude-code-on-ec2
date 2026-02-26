@@ -29,7 +29,7 @@ export class ClaudeOnEc2Stack extends cdk.Stack {
 
     // ── セキュリティグループ ──────────────────────────────
     // インバウンドは全閉じ（SSH ポート 22 も不要）
-    // アウトバウンドは全許可（SSM・npm・Anthropic API 通信が必要）
+    // アウトバウンドは全許可（SSM・Anthropic API 通信が必要）
     const sg = new ec2.SecurityGroup(this, 'ClaudeEc2Sg', {
       vpc,
       description: 'Claude Code EC2 - No inbound, outbound all allowed',
@@ -43,13 +43,9 @@ export class ClaudeOnEc2Stack extends cdk.Stack {
       'dnf update -y',
       'dnf install -y tmux git',
 
-      // ② nvm + Node.js + Claude Code を ec2-user としてインストール
-      'sudo -u ec2-user -i bash -c "' +
-        'curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash && ' +
-        'source ~/.nvm/nvm.sh && ' +
-        'nvm install --lts && ' +
-        'npm install -g @anthropic-ai/claude-code' +
-        '"',
+      // ② Claude Code ネイティブインストール（Node.js 不要・直接インストール）
+      // --noprofile --norc: .bashrc の tmux 自動アタッチが非対話型環境で干渉するのを防ぐ
+      'sudo -u ec2-user bash --noprofile --norc -c "export HOME=/home/ec2-user && curl -fsSL https://claude.ai/install.sh | bash"',
 
       // ③ tmux + Claude Code 自動起動スクリプトを作成
       // 注意: 初回は SSM 接続して手動で claude にログインする必要がある
@@ -59,8 +55,7 @@ export class ClaudeOnEc2Stack extends cdk.Stack {
         '#!/bin/bash',
         'export HOME=/home/ec2-user',
         'export TERM=xterm-256color',
-        'export NVM_DIR="$HOME/.nvm"',
-        '[ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"',
+        'export PATH="$HOME/.local/bin:$PATH"',
         '# 既存の tmux セッションがなければ新規作成して Claude Code を起動',
         'if ! tmux has-session -t claude 2>/dev/null; then',
         '  # 古いソケットの残骸をクリーンアップ',
@@ -72,7 +67,7 @@ export class ClaudeOnEc2Stack extends cdk.Stack {
         '  tmux set-option -t claude remain-on-exit on',
         "  tmux set-hook -t claude pane-died 'respawn-pane -k -t claude:0.0'",
         '  sleep 1',
-        "  tmux send-keys -t claude 'export TERM=xterm-256color && cd /home/ec2-user && source ~/.nvm/nvm.sh && claude' Enter",
+        "  tmux send-keys -t claude 'export TERM=xterm-256color && cd /home/ec2-user && claude' Enter",
         'fi',
         'ENDSCRIPT',
       ].join('\n'),

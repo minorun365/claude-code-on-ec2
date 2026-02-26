@@ -66,9 +66,8 @@ aws ssm start-session --target <InstanceId> --region us-east-1
 接続後：
 
 ```bash
-sudo su - ec2-user       # tmux セッションに自動アタッチされる
-source ~/.nvm/nvm.sh     # 初回のみ（tmux セッションがまだない場合）
-claude                   # ブラウザ認証 → claude.ai にログイン
+sudo su - ec2-user   # tmux セッションに自動アタッチされる
+claude               # ブラウザ認証 → claude.ai にログイン
 ```
 
 > AWS コンソールからも接続可: EC2 → 「接続」→「Session Manager」タブ
@@ -130,7 +129,7 @@ aws ssm send-command --instance-id <InstanceId> --region us-east-1 \
 | 症状 | 対処 |
 |------|------|
 | `SessionManagerPlugin is not found` | Step 1 で session-manager-plugin をインストール |
-| `claude` コマンドが見つからない | `source ~/.nvm/nvm.sh` を実行 |
+| `claude` コマンドが見つからない | `source ~/.bashrc` を実行（PATH に `~/.local/bin` を追加） |
 | Bash ツールで `not a terminal` エラー | `export TERM=xterm-256color` を実行（本 CDK では自動設定済み） |
 | VSCode で `Unexpected line break` | `~/.ssh/config` の ProxyCommand を1行にまとめる |
 | CDK CLI バージョン不一致エラー | `npm install aws-cdk@latest --save-dev` でアップデート |
