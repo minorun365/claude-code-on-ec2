@@ -1,18 +1,17 @@
 #!/bin/bash
-# Claude Code Remote Control 起動スクリプト
+# Claude Code 起動スクリプト（ローカル参考用）
 # 使い方: EC2 上で実行する
-#   bash start-claude.sh
+#   bash start-claude.sh [workspace-dir]
 #
-# tmux セッション "claude" を作成し、Claude Code Remote Control を起動する。
+# tmux セッション "claude" を作成し、Claude Code を起動する。
 # EC2 から SSH/SSM 接続を切っても tmux セッションは継続する。
 
 set -euo pipefail
 
 SESSION_NAME="claude"
 
-# nvm のロード
-export NVM_DIR="$HOME/.nvm"
-[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+export PATH="$HOME/.local/bin:$PATH"
+export TERM=xterm-256color
 
 # claude コマンドが使えるか確認
 if ! command -v claude &> /dev/null; then
@@ -27,12 +26,10 @@ if tmux has-session -t "$SESSION_NAME" 2>/dev/null; then
   tmux attach -t "$SESSION_NAME"
 else
   echo "tmux セッション '$SESSION_NAME' を新規作成して Claude Code を起動します..."
-  tmux new-session -d -s "$SESSION_NAME" -x 220 -y 50
-  # Claude Code Remote Control を起動
-  tmux send-keys -t "$SESSION_NAME" "claude remote-control" Enter
+  tmux new-session -d -s "$SESSION_NAME" -x 220 -y 50 "/usr/local/bin/claude-entrypoint.sh"
   echo ""
   echo "======================================"
-  echo " Claude Code Remote Control 起動中！"
+  echo " Claude Code 起動中！"
   echo "======================================"
   echo ""
   echo "tmux セッションにアタッチします（Ctrl+B, D でデタッチできます）"

@@ -47,33 +47,77 @@ export class ClaudeOnEc2Stack extends cdk.Stack {
       // --noprofile --norc: .bashrc の tmux 自動アタッチが非対話型環境で干渉するのを防ぐ
       'sudo -u ec2-user bash --noprofile --norc -c "export HOME=/home/ec2-user && curl -fsSL https://claude.ai/install.sh | bash"',
 
-      // ③ tmux + Claude Code 自動起動スクリプトを作成
-      // 注意: 初回は SSM 接続して手動で claude にログインする必要がある
-      //       一度認証後は EC2 再起動時にこのスクリプトが自動実行される
+      // ③ ec2-user ログイン時は既存の tmux セッションに自動アタッチ + ヘルパー関数
       [
-        "cat > /usr/local/bin/claude-autostart.sh << 'ENDSCRIPT'",
+        "if ! grep -q 'claude-on-ec2 auto attach' /home/ec2-user/.bashrc 2>/dev/null; then",
+        "cat >> /home/ec2-user/.bashrc << 'BASHEOF'",
+        '',
+        '# claude-on-ec2 auto attach',
+        'export PATH="$HOME/.local/bin:$PATH"',
+        'export TERM=xterm-256color',
+        'if [[ $- == *i* ]] && [[ -z "$TMUX" ]] && command -v tmux >/dev/null 2>&1; then',
+        '  tmux has-session -t claude 2>/dev/null && exec tmux attach -t claude',
+        'fi',
+        '',
+        '# cw: Claude Workspace - 指定ディレクトリで Claude Code を起動',
+        '# 使い方: cw ~/git/my-project',
+        '#         cw  (引数なし = ホームで起動)',
+        'cw() {',
+        '  local dir="${1:-$HOME}"',
+        '  if [[ -d "$dir" ]]; then',
+        '    cd "$dir" && claude',
+        '  else',
+        '    echo "Directory not found: $dir"',
+        '  fi',
+        '}',
+        'BASHEOF',
+        'fi',
+      ].join('\n'),
+      'chown ec2-user:ec2-user /home/ec2-user/.bashrc',
+
+      // ④ Claude Code エントリポイント（終了後はbashに落ちてワークスペース変更可能）
+      [
+        "cat > /usr/local/bin/claude-entrypoint.sh << 'ENTRYEOF'",
         '#!/bin/bash',
         'export HOME=/home/ec2-user',
-        'export TERM=xterm-256color',
         'export PATH="$HOME/.local/bin:$PATH"',
-        '# 既存の tmux セッションがなければ新規作成して Claude Code を起動',
+        'export TERM=xterm-256color',
+        'cd /home/ec2-user',
+        'echo "=== Claude Code on EC2 ==="',
+        'echo "Starting Claude Code..."',
+        'echo "After login, run /config to enable Remote Control."',
+        'echo ""',
+        'claude || true',
+        'echo ""',
+        'echo "=== Claude Code exited ==="',
+        'echo "You can now:"',
+        'echo "  - Run: claude                  (restart here)"',
+        'echo "  - Run: cw ~/git/my-project     (change workspace)"',
+        'echo "  - Run: exit                    (close this pane)"',
+        'echo ""',
+        'exec bash -l',
+        'ENTRYEOF',
+      ].join('\n'),
+      'chmod +x /usr/local/bin/claude-entrypoint.sh',
+
+      // ⑤ tmux + Claude Code 自動起動スクリプト（pane-died フック廃止 = 無限ループ根絶）
+      [
+        "cat > /usr/local/bin/claude-autostart.sh << 'AUTOSTARTEOF'",
+        '#!/bin/bash',
+        'export HOME=/home/ec2-user',
+        'export PATH="$HOME/.local/bin:$PATH"',
+        'export TERM=xterm-256color',
+        '# 既存セッションがなければ新規作成',
         'if ! tmux has-session -t claude 2>/dev/null; then',
-        '  # 古いソケットの残骸をクリーンアップ',
         '  tmux kill-server 2>/dev/null || true',
         '  sleep 0.5',
-        '  # セッション作成（ホームディレクトリで起動）',
-        '  tmux new-session -d -s claude -x 220 -y 50',
-        '  # claude が終了したら自動でペインを再起動する設定',
-        '  tmux set-option -t claude remain-on-exit on',
-        "  tmux set-hook -t claude pane-died 'respawn-pane -k -t claude:0.0'",
-        '  sleep 1',
-        "  tmux send-keys -t claude 'export TERM=xterm-256color && cd /home/ec2-user && claude' Enter",
+        '  tmux new-session -d -s claude -x 220 -y 50 "/usr/local/bin/claude-entrypoint.sh"',
         'fi',
-        'ENDSCRIPT',
+        'AUTOSTARTEOF',
       ].join('\n'),
       'chmod +x /usr/local/bin/claude-autostart.sh',
 
-      // ④ systemd サービス登録（再起動時に自動起動）
+      // ⑥ systemd サービス登録（初回起動時にも即実行）
       [
         "cat > /etc/systemd/system/claude-code.service << 'EOF'",
         '[Unit]',
@@ -93,23 +137,9 @@ export class ClaudeOnEc2Stack extends cdk.Stack {
       ].join('\n'),
       'systemctl daemon-reload',
       'systemctl enable claude-code.service',
+      'systemctl start claude-code.service',
 
-      // ⑤ ~/.bashrc に tmux 自動アタッチと TERM 設定を追加
-      [
-        "cat >> /home/ec2-user/.bashrc << 'EOF'",
-        '',
-        '# Claude Code on EC2: TERM 設定（Bash ツール対策）',
-        'export TERM=xterm-256color',
-        '',
-        '# tmux 自動アタッチ（sudo su - ec2-user した瞬間に claude セッションに入る）',
-        'if [[ -z "$TMUX" ]]; then',
-        '    tmux has-session -t claude 2>/dev/null && exec tmux attach -t claude',
-        'fi',
-        'EOF',
-      ].join('\n'),
-      'chown ec2-user:ec2-user /home/ec2-user/.bashrc',
-
-      // ⑥ セットアップ完了マーカー
+      // ⑦ セットアップ完了マーカー
       'echo "CLAUDE_ON_EC2_SETUP_COMPLETE=$(date)" >> /home/ec2-user/.setup-complete',
       'chown ec2-user:ec2-user /home/ec2-user/.setup-complete',
     );

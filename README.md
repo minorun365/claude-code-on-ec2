@@ -8,7 +8,7 @@ Remote Control でアクセスできる**パーソナル Claude Code サーバ�
     ↕ Remote Control（HTTPS）または SSM Session Manager
 EC2 t4g.large（Amazon Linux 2023 / Graviton2）
     └── tmux セッション「claude」
-          └── Claude Code（systemd + tmux で常時稼働・自動再起動）
+          └── Claude Code（systemd + tmux で常時稼働）
 ```
 
 ## 特徴
@@ -16,7 +16,8 @@ EC2 t4g.large（Amazon Linux 2023 / Graviton2）
 - **ポート開放ゼロ** — SSM Session Manager 経由で接続（SSH ポート 22 不要）
 - **どこからでもアクセス** — スマホ・Mac・VSCode の Remote Control で操作
 - **Mac を閉じても継続** — tmux セッションが EC2 上で生き続ける
-- **自動復旧** — systemd + tmux `remain-on-exit` で EC2 再起動後も自動起動
+- **自動復旧** — systemd により EC2 再起動後も tmux + Claude Code が自動起動
+- **ワークスペース変更** — Claude Code 終了後に別のプロジェクトディレクトリで再起動可能
 
 ## 必要なもの
 
@@ -105,6 +106,31 @@ aws ssm send-command --instance-id <InstanceId> --region us-east-1 \
   --document-name "AWS-RunShellScript" \
   --parameters 'commands=["echo \"<公開鍵>\" >> /home/ec2-user/.ssh/authorized_keys"]'
 ```
+
+## ワークスペース変更
+
+Claude Code を exit した後、bash シェルに落ちるので別ディレクトリで再起動できます。
+
+```bash
+# 方法1: cd + claude
+cd ~/git/my-project && claude
+
+# 方法2: cw ヘルパー関数（.bashrc 定義済み）
+cw ~/git/my-project
+```
+
+## tmux 基本操作
+
+| 操作 | キー | 覚え方 |
+|------|------|--------|
+| デタッチ（切断せず離れる） | `Ctrl+B, D` | **D**etach |
+| 新しいウィンドウ作成 | `Ctrl+B, C` | **C**reate |
+| 次のウィンドウ | `Ctrl+B, N` | **N**ext |
+| 前のウィンドウ | `Ctrl+B, P` | **P**revious |
+| ウィンドウ番号で移動 | `Ctrl+B, 数字` | — |
+| スクロールモード | `Ctrl+B, [` | `q` で終了 |
+
+> `Ctrl+B` は tmux への「合図キー」。その後に押す1文字が命令（すべて英単語の頭文字）。
 
 ## コスト目安（us-east-1）
 
