@@ -11,13 +11,11 @@ EC2 t4g.large（Amazon Linux 2023 / Graviton2）
           └── Claude Code（systemd + tmux で常時稼働）
 ```
 
-## 特徴
+## 主な機能
 
-- **ポート開放ゼロ** — SSM Session Manager 経由で接続（SSH ポート 22 不要）
-- **どこからでもアクセス** — スマホ・Mac・VSCode の Remote Control で操作
-- **Mac を閉じても継続** — tmux セッションが EC2 上で生き続ける
-- **自動復旧** — systemd により EC2 再起動後も tmux + Claude Code が自動起動
-- **ワークスペース変更** — Claude Code 終了後に別のプロジェクトディレクトリで再起動可能
+接続は SSM Session Manager 経由なので、SSH のポートを開けずに済みます。スマホ・Mac・VS Code のどれからでも、Remote Control で同じ Claude Code を操作できます。
+
+Claude Code は EC2 上の tmux セッションで動き続けるので、Mac を閉じても作業は止まりません。EC2 を再起動しても systemd が自動で立ち上げ直します。Claude Code を終了したあとは、別のプロジェクトのディレクトリで起動し直せます。
 
 ## 必要なもの
 
