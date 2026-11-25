@@ -1,7 +1,6 @@
 # Claude Code on EC2
 
-AWS EC2 上で Claude Code を常時稼働させ、スマホ・Mac・VSCode などどこからでも
-Remote Control でアクセスできる**パーソナル Claude Code サーバー**を CDK で構築します。
+AWS EC2 上で Claude Code を常時稼働させ、スマホ・Mac・VSCode などどこからでも Remote Control でアクセスできるパーソナル Claude Code サーバーを CDK で構築します。
 
 ```
 スマホ / Mac / VSCode
@@ -62,14 +61,14 @@ aws ssm send-command --instance-id <InstanceId> --region us-east-1 \
 aws ssm start-session --target <InstanceId> --region us-east-1
 ```
 
-接続後：
+接続したら次を実行します。
 
 ```bash
 sudo su - ec2-user   # tmux セッションに自動アタッチされる
 claude               # ブラウザ認証 → claude.ai にログイン
 ```
 
-> AWS コンソールからも接続可: EC2 → 「接続」→「Session Manager」タブ
+> AWS コンソールからも接続できます（EC2 → 「接続」→「Session Manager」タブ）。
 
 ### 4. Remote Control を有効化
 
@@ -77,17 +76,16 @@ claude               # ブラウザ認証 → claude.ai にログイン
 /config
 ```
 
-「すべてのセッションでリモートコントロールを有効にする」を `true` に設定すると、
-以降は `claude` 起動時に自動で Remote Control が有効になります。
+「すべてのセッションでリモートコントロールを有効にする」を `true` に設定すると、以降は `claude` 起動時に自動で Remote Control が有効になります。
 
 ### 5. スマホから接続
 
 - `claude.ai/code` を開くと緑ドットのアクティブセッションが一覧表示されます
-- またはターミナルに表示された URL、もしくはスペースキーで出る QR コードから接続
+- ターミナルに表示された URL や、スペースキーで出る QR コードからも接続できます
 
 ### 6. VSCode Remote-SSH 連携（オプション）
 
-`~/.ssh/config` に追記（ProxyCommand は **1行で**書くこと）：
+`~/.ssh/config` に以下を追記します。ProxyCommand は1行で書いてください。
 
 ```
 Host claude-ec2
@@ -97,7 +95,7 @@ Host claude-ec2
     ProxyCommand aws ssm start-session --target %h --document-name AWS-StartSSHSession --parameters portNumber=%p --region us-east-1
 ```
 
-SSH 公開鍵の登録：
+SSH 公開鍵を登録します。
 
 ```bash
 aws ssm send-command --instance-id <InstanceId> --region us-east-1 \
@@ -107,7 +105,7 @@ aws ssm send-command --instance-id <InstanceId> --region us-east-1 \
 
 ## ワークスペース変更
 
-Claude Code を exit した後、bash シェルに落ちるので別ディレクトリで再起動できます。
+Claude Code を exit すると bash シェルに落ちるので、別のディレクトリで再起動できます。
 
 ```bash
 # 方法1: cd + claude
@@ -128,7 +126,7 @@ cw ~/git/my-project
 | ウィンドウ番号で移動 | `Ctrl+B, 数字` | — |
 | スクロールモード | `Ctrl+B, [` | `q` で終了 |
 
-> `Ctrl+B` は tmux への「合図キー」。その後に押す1文字が命令（すべて英単語の頭文字）。
+> `Ctrl+B` は tmux への合図キーで、その後に押す1文字が命令になります。いずれも英単語の頭文字です。
 
 ## コスト目安（us-east-1）
 
@@ -138,7 +136,7 @@ cw ~/git/my-project
 | EBS gp3 30GB | 約 $2.4 |
 | AWS Backup 週次スナップショット | 約 $1〜3 |
 | SSM / Elastic IP（使用中） | 無料 |
-| **合計** | **約 $52〜55** |
+| 合計 | 約 $52〜55 |
 
 ## データ保護
 
@@ -154,6 +152,6 @@ cw ~/git/my-project
 |------|------|
 | `SessionManagerPlugin is not found` | Step 1 で session-manager-plugin をインストール |
 | `claude` コマンドが見つからない | `source ~/.bashrc` を実行（PATH に `~/.local/bin` を追加） |
-| Bash ツールで `not a terminal` エラー | `export TERM=xterm-256color` を実行（本 CDK では自動設定済み） |
+| Bash ツールで `not a terminal` エラー | `export TERM=xterm-256color` を実行（この CDK では自動設定済み） |
 | VSCode で `Unexpected line break` | `~/.ssh/config` の ProxyCommand を1行にまとめる |
 | CDK CLI バージョン不一致エラー | `npm install aws-cdk@latest --save-dev` でアップデート |
